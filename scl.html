@@ -376,70 +376,85 @@
       }
     }
 
-    async function connect() {
-      log("[INFO] Connect clicked...");
+async function connect() {
+  log("[INFO] Connect clicked...");
 
-      if (!window.isSecureContext) {
-        log("[ERROR] Requires HTTPS or localhost", "bad");
-        setStatus("requires HTTPS/localhost", "bad");
-        return;
-      }
-      if (!navigator.bluetooth) {
-        log("[ERROR] Web Bluetooth unsupported in this browser", "bad");
-        setStatus("Web Bluetooth unsupported", "bad");
-        return;
-      }
+  if (!window.isSecureContext) {
+    log("[ERROR] Requires HTTPS or localhost", "bad");
+    setStatus("requires HTTPS/localhost", "bad");
+    return;
+  }
 
-      els.connectBtn.disabled = true;
+  if (!navigator.bluetooth) {
+    log("[ERROR] Web Bluetooth unsupported in this browser", "bad");
+    setStatus("Web Bluetooth unsupported", "bad");
+    return;
+  }
 
-      try {
-        resetRx();
-        setStatus("opening chooser...");
+  const machines = getActiveMachines();
 
-        // NOTE: Browser chooser filtering is limited; we keep acceptAllDevices=true.
-        // You select the correct device by its BLE name (shown in the device map).
-        device = await navigator.bluetooth.requestDevice({
-          acceptAllDevices: true,
-          optionalServices: [SERVICE_UUID]
-        });
+  if (!machines.length) {
+    log("[ERROR] No machines loaded", "bad");
+    return;
+  }
 
-        log(`[INFO] Chooser returned: ${device.name || "(unnamed)"} (${device.id || "no-id"})`);
-        device.addEventListener("gattserverdisconnected", onDisconnected);
+  // Since each project has 1 machine, use first machine
+  const selected = machines[0];
 
-        setStatus("connecting gatt...");
-        server = await device.gatt.connect();
-        log("[INFO] GATT connected.", "ok");
+  if (!selected.bluetoothName) {
+    log("[ERROR] No bluetooth name configured", "bad");
+    return;
+  }
 
-        setStatus("getting service...");
-        service = await server.getPrimaryService(SERVICE_UUID);
-        log("[INFO] Primary service opened.", "ok");
+  els.connectBtn.disabled = true;
 
-        setStatus("getting tx characteristic...");
-        txChar = await service.getCharacteristic(TX_UUID);
-        log("[INFO] TX characteristic ready.", "ok");
+  try {
+    resetRx();
+    setStatus(`searching ${selected.bluetoothName}...`);
 
-        try {
-          rxChar = await service.getCharacteristic(RX_UUID);
-          await rxChar.startNotifications();
-          rxChar.addEventListener("characteristicvaluechanged", onNotify);
-          log("[INFO] RX notifications enabled.", "ok");
-        } catch (e) {
-          rxChar = null;
-          log(`[WARN] RX notifications unavailable: ${String(e)}`, "warn");
-        }
+    // ==========================================
+    // ONLY SHOW MATCHING DEVICE IN POPUP
+    // ==========================================
+    device = await navigator.bluetooth.requestDevice({
+      filters: [
+        { name: selected.bluetoothName }
+      ],
+      optionalServices: [SERVICE_UUID]
+    });
 
-        setConnectedUI(true);
-        setStatus(`connected to ${device.name || "(unnamed device)"}`, "ok");
-      } catch (e) {
-        log(`[ERROR] Connect failed: ${e?.name || "Error"}: ${e?.message || String(e)}`, "bad");
-        setStatus("connect failed", "bad");
-        await disconnect();
-      } finally {
-        if (!device || !device.gatt || !device.gatt.connected) {
-          els.connectBtn.disabled = false;
-        }
-      }
+    log(`[INFO] Selected: ${device.name || "(unnamed)"}`);
+    device.addEventListener("gattserverdisconnected", onDisconnected);
+
+    setStatus("connecting...");
+    server = await device.gatt.connect();
+
+    service = await server.getPrimaryService(SERVICE_UUID);
+    txChar = await service.getCharacteristic(TX_UUID);
+
+    try {
+      rxChar = await service.getCharacteristic(RX_UUID);
+      await rxChar.startNotifications();
+      rxChar.addEventListener("characteristicvaluechanged", onNotify);
+      log("[INFO] RX notifications enabled.", "ok");
+    } catch (e) {
+      rxChar = null;
+      log("[WARN] RX unavailable", "warn");
     }
+
+    setConnectedUI(true);
+    setStatus(`connected to ${selected.name}`, "ok");
+    log(`[INFO] Connected to ${selected.name}`, "ok");
+
+  } catch (e) {
+    log(`[ERROR] Connect failed: ${e.message || e}`, "bad");
+    setStatus("connect failed", "bad");
+    await disconnect();
+  } finally {
+    if (!device || !device.gatt || !device.gatt.connected) {
+      els.connectBtn.disabled = false;
+    }
+  }
+}
 
     async function disconnect() {
       try {
