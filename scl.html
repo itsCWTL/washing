@@ -101,35 +101,63 @@
     // ============================================================
     // Add more "projects" if you want to group machines by room/building/etc.
     const PROJECTS = [
+  {
+    id: "project_dryerTBD",
+    name: "Dryer TBD",
+    machines: [
       {
-        id: "project_dryer23",
-        name: "Dryer 23",
-        machines: [
-          {
-            id: "dryer23",
-            name: "Dryer 23",
-            bluetoothName: "",
-            password: "",
-            type: "dryer",
-            cycles: { min15: "15 min cycle", full: "Full dry" }
-          }
-        ]
-      },
-      {
-        id: "project_washer13",
-        name: "Washer 13",
-        machines: [
-          {
-            id: "washer13",
-            name: "Washer 13",
-            bluetoothName: "",
-            password: "",
-            type: "washer",
-            cycles: { full: "Full wash" }
-          }
-        ]
+        id: "dryerTBD",
+        name: "Dryer TBD",
+        bluetoothName: "",
+        password: "",
+        type: "dryer",
+        cycles: { min15: "15 min cycle", full: "Full dry" }
       }
-    ];
+    ]
+  },
+  {
+    id: "project_dryerTBD",
+    name: "Dryer TBD",
+    machines: [
+      {
+        id: "dryerTBD",
+        name: "Dryer TBD",
+        bluetoothName: "",
+        password: "",
+        type: "dryer",
+        cycles: { min15: "15 min cycle", full: "Full dry" }
+      }
+    ]
+  },
+  {
+    id: "project_washer18",
+    name: "Washer 18",
+    machines: [
+      {
+        id: "washer18",
+        name: "Washer 18",
+        bluetoothName: "",
+        password: "ST",
+        type: "washer",
+        cycles: { full: "Full wash" }
+      }
+    ]
+  },
+  {
+    id: "project_washer20",
+    name: "Washer 20",
+    machines: [
+      {
+        id: "washer20",
+        name: "Washer 20",
+        bluetoothName: "AW39SC4UN8R1",
+        password: "",
+        type: "washer",
+        cycles: { full: "Full wash" }
+      }
+    ]
+  }
+];
 
     // Current selected project (default first)
     let activeProjectId = PROJECTS[0]?.id || "";
