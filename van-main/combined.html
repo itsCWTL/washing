@@ -100,37 +100,50 @@
     // 1) COMBINED CONFIG: BOTH OF YOUR PROJECTS IN ONE FILE
     // ============================================================
     // Add more "projects" if you want to group machines by room/building/etc.
-    const PROJECTS = [
+   const PROJECTS = [
+  {
+    id: "project_dryer3",
+    name: "Dryer 3 set",
+    machines: [
       {
-        id: "project_dryer3",
-        name: "Dryer 3 set",
-        machines: [
-          {
-            id: "dryer3",
-            name: "Dryer 3",
-            bluetoothName: "AW9RU7RZFZR1",
-            password: "NVW537888",
-            type: "dryer",
-            cycles: { min15: "15 min cycle", full: "Full dry" }
-          }
-        ]
-      },
-      {
-        id: "project_washer8",
-        name: "Washer 8 set",
-        machines: [
-          {
-            id: "washer8",
-            name: "Washer 8",
-            bluetoothName: "AWD4697RXYR1",
-            password: "NZB175325",
-            type: "washer",
-            cycles: { full: "Full wash" }
-          }
-        ]
+        id: "dryer3",
+        name: "Dryer 3",
+        bluetoothName: "AW9RU7RZFZR1",
+        password: "NVW537888",
+        type: "dryer",
+        cycles: { min15: "15 min cycle", full: "Full dry" }
       }
-    ];
-
+    ]
+  },
+  {
+    id: "project_dryer5",
+    name: "Dryer 5 set",
+    machines: [
+      {
+        id: "dryer5",
+        name: "Dryer 5",
+        bluetoothName: "AW5R3D2WJ9R1",
+        password: "UDA617525",
+        type: "dryer",
+        cycles: { min15: "15 min cycle", full: "Full dry" }
+      }
+    ]
+  },
+  {
+    id: "project_washer8",
+    name: "Washer 8 set",
+    machines: [
+      {
+        id: "washer8",
+        name: "Washer 8",
+        bluetoothName: "AWD4697RXYR1",
+        password: "NZB175325",
+        type: "washer",
+        cycles: { full: "Full wash" }
+      }
+    ]
+  }
+];
     // Current selected project (default first)
     let activeProjectId = PROJECTS[0]?.id || "";
     function getActiveMachines() {
