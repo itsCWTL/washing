@@ -72,8 +72,8 @@
 
       <div class="small mono" style="margin-top:10px;">
         Service UUID: 569a1101-b87f-490c-92cb-11ba5ea5167c<br>
-        RX UUID: 569a2000-b87f-490c-92cb-11ba5ea5167c<br>
-        TX UUID: 569a2001-b87f-490c-92cb-11ba5ea5167c
+        RX UUID: 569a2001-b87f-490c-92cb-11ba5ea5167c<br>
+        TX UUID: 569a2000-b87f-490c-92cb-11ba5ea5167c
       </div>
 
       <div class="map small" id="deviceMap">
@@ -99,7 +99,6 @@
     // ============================================================
     // 1) COMBINED CONFIG: BOTH OF YOUR PROJECTS IN ONE FILE
     // ============================================================
-    // Add more "projects" if you want to group machines by room/building/etc.
     const PROJECTS = [
   {
     id: "project_dryer8",
@@ -107,7 +106,7 @@
     machines: [
       {
         id: "dryer8",
-        name: "Dryer 8",
+        name: "Dryer tdb",
         bluetoothName: "AWZHP7K3JBR1",
         password: "WQH794367",
         type: "dryer",
@@ -120,10 +119,10 @@
     name: "Dryer tbd",
     machines: [
       {
-        id: "dryer19",
-        name: "Dryer 19",
-        bluetoothName: "AWAZPHKF3PR1",
-        password: "RFP974262",
+        id: "dryer27",
+        name: "Dryer 27",
+        bluetoothName: "AW2VUNMUXBR1",
+        password: "",
         type: "dryer",
         cycles: { min15: "15 min cycle", full: "Full dry" }
       }
@@ -159,7 +158,6 @@
   }
 ];
 
-    // Current selected project (default first)
     let activeProjectId = PROJECTS[0]?.id || "";
     function getActiveMachines() {
       return (PROJECTS.find(p => p.id === activeProjectId)?.machines) || [];
@@ -169,8 +167,10 @@
     // 2) BLE UUIDs / COMMON COMMANDS
     // ============================================================
     const SERVICE_UUID = "569a1101-b87f-490c-92cb-11ba5ea5167c";
-    const RX_UUID = "569a2000-b87f-490c-92cb-11ba5ea5167c"; // notify
-    const TX_UUID = "569a2001-b87f-490c-92cb-11ba5ea5167c"; // write
+    
+    // UUIDs SWAPPED HERE
+    const RX_UUID = "569a2001-b87f-490c-92cb-11ba5ea5167c"; // notify
+    const TX_UUID = "569a2000-b87f-490c-92cb-11ba5ea5167c"; // write
 
     const CMD = {
       HANDSHAKE: "[HANDSHAKE:ENABLE]",
@@ -271,24 +271,23 @@
       return out;
     }
 
-    function extractFrames(bufRef) {
+    // UPDATED FRAME EXTRACTION LOGIC
+    function extractFrames() {
       const frames = [];
       while (true) {
-        const start = bufRef.indexOf("[".charCodeAt(0));
+        const start = rxBuf.indexOf("[".charCodeAt(0));
         if (start < 0) {
-          rxBuf = new Uint8Array(0);
+          rxBuf = new Uint8Array(0); 
           return frames;
         }
-        if (start > 0) {
-          bufRef = bufRef.slice(start);
-          rxBuf = bufRef;
+        
+        const end = rxBuf.indexOf("]".charCodeAt(0), start + 1);
+        if (end < 0) {
+          return frames; 
         }
-        const end = bufRef.indexOf("]".charCodeAt(0), 1);
-        if (end < 0) return frames;
 
-        frames.push(bufRef.slice(0, end + 1));
-        bufRef = bufRef.slice(end + 1);
-        rxBuf = bufRef;
+        frames.push(rxBuf.slice(start, end + 1));
+        rxBuf = rxBuf.slice(end + 1);
       }
     }
 
@@ -298,7 +297,7 @@
         const chunk = new Uint8Array(v.buffer, v.byteOffset, v.byteLength);
         rxBuf = concatU8(rxBuf, chunk);
 
-        for (const raw of extractFrames(rxBuf)) {
+        for (const raw of extractFrames()) {
           const msg = dec.decode(raw);
           log(`RX: ${msg}`);
           enqueueMsg(msg);
@@ -344,9 +343,10 @@
       });
     }
 
+    // UPDATED WRITE FUNCTION (Appended line terminator \n)
     async function writeAscii(text) {
       if (!txChar) throw new Error("TX characteristic not ready");
-      const bytes = enc.encode(text);
+      const bytes = enc.encode(text + "\n");
 
       try {
         await txChar.writeValueWithoutResponse(bytes);
@@ -376,85 +376,81 @@
       }
     }
 
-async function connect() {
-  log("[INFO] Connect clicked...");
+    async function connect() {
+      log("[INFO] Connect clicked...");
 
-  if (!window.isSecureContext) {
-    log("[ERROR] Requires HTTPS or localhost", "bad");
-    setStatus("requires HTTPS/localhost", "bad");
-    return;
-  }
+      if (!window.isSecureContext) {
+        log("[ERROR] Requires HTTPS or localhost", "bad");
+        setStatus("requires HTTPS/localhost", "bad");
+        return;
+      }
 
-  if (!navigator.bluetooth) {
-    log("[ERROR] Web Bluetooth unsupported in this browser", "bad");
-    setStatus("Web Bluetooth unsupported", "bad");
-    return;
-  }
+      if (!navigator.bluetooth) {
+        log("[ERROR] Web Bluetooth unsupported in this browser", "bad");
+        setStatus("Web Bluetooth unsupported", "bad");
+        return;
+      }
 
-  const machines = getActiveMachines();
+      const machines = getActiveMachines();
 
-  if (!machines.length) {
-    log("[ERROR] No machines loaded", "bad");
-    return;
-  }
+      if (!machines.length) {
+        log("[ERROR] No machines loaded", "bad");
+        return;
+      }
 
-  // Since each project has 1 machine, use first machine
-  const selected = machines[0];
+      const selected = machines[0];
 
-  if (!selected.bluetoothName) {
-    log("[ERROR] No bluetooth name configured", "bad");
-    return;
-  }
+      if (!selected.bluetoothName) {
+        log("[ERROR] No bluetooth name configured", "bad");
+        return;
+      }
 
-  els.connectBtn.disabled = true;
+      els.connectBtn.disabled = true;
 
-  try {
-    resetRx();
-    setStatus(`searching ${selected.bluetoothName}...`);
+      try {
+        resetRx();
+        setStatus(`searching ${selected.bluetoothName}...`);
 
-    // ==========================================
-    // ONLY SHOW MATCHING DEVICE IN POPUP
-    // ==========================================
-    device = await navigator.bluetooth.requestDevice({
-      filters: [
-        { name: selected.bluetoothName }
-      ],
-      optionalServices: [SERVICE_UUID]
-    });
+        device = await navigator.bluetooth.requestDevice({
+          filters: [
+            { name: selected.bluetoothName }
+          ],
+          optionalServices: [SERVICE_UUID]
+        });
 
-    log(`[INFO] Selected: ${device.name || "(unnamed)"}`);
-    device.addEventListener("gattserverdisconnected", onDisconnected);
+        log(`[INFO] Selected: ${device.name || "(unnamed)"}`);
+        device.addEventListener("gattserverdisconnected", onDisconnected);
 
-    setStatus("connecting...");
-    server = await device.gatt.connect();
+        setStatus("connecting...");
+        server = await device.gatt.connect();
 
-    service = await server.getPrimaryService(SERVICE_UUID);
-    txChar = await service.getCharacteristic(TX_UUID);
+        service = await server.getPrimaryService(SERVICE_UUID);
+        txChar = await service.getCharacteristic(TX_UUID);
 
-    try {
-      rxChar = await service.getCharacteristic(RX_UUID);
-      await rxChar.startNotifications();
-      rxChar.addEventListener("characteristicvaluechanged", onNotify);
-      log("[INFO] RX notifications enabled.", "ok");
-    } catch (e) {
-      rxChar = null;
-      log("[WARN] RX unavailable", "warn");
+        try {
+          rxChar = await service.getCharacteristic(RX_UUID);
+          await rxChar.startNotifications();
+          rxChar.addEventListener("characteristicvaluechanged", onNotify);
+          log("[INFO] RX notifications enabled.", "ok");
+        } catch (e) {
+          rxChar = null;
+          log("[WARN] RX unavailable", "warn");
+        }
+
+        setConnectedUI(true);
+        setStatus(`connected to ${selected.name}`, "ok");
+        log(`[INFO] Connected to ${selected.name}`, "ok");
+
+      } catch (e) {
+        log(`[ERROR] Connect failed: ${e.message || e}`, "bad");
+        setStatus("connect failed", "bad");
+        await disconnect();
+      } finally {
+        if (!device || !device.gatt || !device.gatt.connected) {
+          els.connectBtn.disabled = false;
+        }
+      }
     }
-
-    setConnectedUI(true);
-    setStatus(`connected to ${selected.name}`, "ok");
-    log(`[INFO] Connected to ${selected.name}`, "ok");
-
-  } catch (e) {
-    log(`[ERROR] Connect failed: ${e.message || e}`, "bad");
-    setStatus("connect failed", "bad");
-    await disconnect();
-  } finally {
-    if (!device || !device.gatt || !device.gatt.connected) {
-      els.connectBtn.disabled = false;
-    }
-  }
-}
 
     async function disconnect() {
       try {
@@ -544,9 +540,7 @@ async function connect() {
     function rerenderAll() {
       renderDeviceMap();
       renderMachineButtons();
-      // Keep current connection state
       setConnectedUI(!!(device && device.gatt && device.gatt.connected));
-      // Log the currently active set
       const machines = getActiveMachines();
       log(`[INFO] Active set: ${PROJECTS.find(p => p.id === activeProjectId)?.name || activeProjectId}`);
       for (const m of machines) log(`Use ${m.name} (${m.bluetoothName})`);
