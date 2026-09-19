@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Nasi Lemak 2</title>
+  <title>Nasi Lemak Diagnostics</title>
   <style>
     :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
     body { margin: 0; background: #0f172a; color: #e2e8f0; }
@@ -52,7 +52,7 @@
 
 <body>
   <div class="wrap">
-    <h1>Nasi Lemak</h1>
+    <h1>Nasi Lemak - Diagnostic Mode</h1>
 
     <div class="card">
       <div class="row">
@@ -60,7 +60,7 @@
         <select id="projectSelect"></select>
 
         <span class="pill">Optional device hint</span>
-        <input id="hintInput" placeholder="e.g. AWD4697RXYR1 (just for your reference)" style="min-width:260px;" />
+        <input id="hintInput" placeholder="e.g. AWD4697RXYR1" style="min-width:260px;" />
       </div>
 
       <div class="row">
@@ -79,10 +79,6 @@
       <div class="map small" id="deviceMap">
         <strong>When selecting a device:</strong><br>
       </div>
-
-      <div class="small" style="margin-top:10px;">
-        Tip: In the chooser, pick the BLE name shown above for the machine you want.
-      </div>
     </div>
 
     <div class="card">
@@ -97,7 +93,7 @@
 
   <script>
     // ============================================================
-    // 1) COMBINED CONFIG: BOTH OF YOUR PROJECTS IN ONE FILE
+    // 1) COMBINED CONFIG
     // ============================================================
     const PROJECTS = [
       {
@@ -177,9 +173,6 @@
       EXEC: "[EXEC]",
     };
 
-    // ============================================================
-    // 3) MACHINE-SPECIFIC COMMAND BUILDERS
-    // ============================================================
     function washerActivateFull(password) {
       return `[ACTIVATE:01:PULSE:OCCUPIED_LOW:00000000:00000032:00000032:0003:${password}]`;
     }
@@ -219,7 +212,6 @@
     const els = {
       projectSelect: document.getElementById("projectSelect"),
       hintInput: document.getElementById("hintInput"),
-
       connectBtn: document.getElementById("connectBtn"),
       disconnectBtn: document.getElementById("disconnectBtn"),
       status: document.getElementById("status"),
@@ -274,7 +266,8 @@
       while (true) {
         const start = rxBuf.indexOf("[".charCodeAt(0));
         if (start < 0) {
-          rxBuf = new Uint8Array(0); 
+          // Instead of clearing the buffer and losing unbracketed data, we just break.
+          // The RAW LOG will capture it.
           return frames;
         }
         
@@ -292,11 +285,17 @@
       try {
         const v = event.target.value;
         const chunk = new Uint8Array(v.buffer, v.byteOffset, v.byteLength);
+        
+        // 1. RAW LOGGING TO CATCH DROPPED ERRORS
+        const rawHex = Array.from(chunk).map(b => b.toString(16).padStart(2, '0')).join(' ');
+        const rawText = dec.decode(chunk).replace(/\n|\r/g, ''); // strip newlines for cleaner logs
+        log(`RAW IN: [${rawHex}] -> "${rawText}"`, "warn");
+
         rxBuf = concatU8(rxBuf, chunk);
 
         for (const raw of extractFrames()) {
           const msg = dec.decode(raw);
-          log(`RX: ${msg}`);
+          log(`FRAMED RX: ${msg}`, "ok");
           enqueueMsg(msg);
         }
       } catch (e) {
@@ -340,15 +339,16 @@
       });
     }
 
-    // UPDATED: Strict writing format. No \n allowed. Forces Write Request.
+    // Removed the \n terminator to strictly match the btsnoop dumps.
     async function writeAscii(text) {
       if (!txChar) throw new Error("TX characteristic not ready");
-      const bytes = enc.encode(text); // Strict frame format
+      const bytes = enc.encode(text);
 
-      // We strictly use writeValue() (Write Request) instead of Without Response.
-      // This forces the machine's hardware to acknowledge the command packet.
-      await txChar.writeValue(bytes);
-      
+      try {
+        await txChar.writeValueWithoutResponse(bytes);
+      } catch {
+        await txChar.writeValue(bytes);
+      }
       log(`TX: ${text}`);
     }
 
@@ -360,6 +360,13 @@
 
     async function runSequence(activateCmd) {
       try {
+        // 2. DEEP-SLEEP WAKE-UP PING
+        // Many BLE serial modules drop the first packet upon waking up.
+        log("Sending wake-up ping...");
+        await writeAscii(CMD.HANDSHAKE);
+        await new Promise(r => setTimeout(r, 400));
+
+        // 3. ACTUAL PROTOCOL EXECUTION
         await send(CMD.HANDSHAKE, "[ACK:HANDSHAKE]", 8000);
         await send(CMD.VERSION, "[VERSION:", 8000);
         await send(CMD.COIN_DISABLE, "[ACK:COIN]", 8000);
@@ -429,8 +436,7 @@
           rxChar.addEventListener("characteristicvaluechanged", onNotify);
           log("[INFO] RX notifications enabled.", "ok");
           
-          // CRITICAL FIX: The machine needs time to register the CCCD state change
-          // before it will accept the first Write Request.
+          // Allow CCCD writes to fully register
           await new Promise(resolve => setTimeout(resolve, 600));
 
         } catch (e) {
