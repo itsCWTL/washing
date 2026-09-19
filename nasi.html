@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Nasi Lemak</title>
+  <title>Nasi Lemak 2</title>
   <style>
     :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
     body { margin: 0; background: #0f172a; color: #e2e8f0; }
@@ -167,8 +167,6 @@
     // 2) BLE UUIDs / COMMON COMMANDS
     // ============================================================
     const SERVICE_UUID = "569a1101-b87f-490c-92cb-11ba5ea5167c";
-    
-    // REVERTED TO YOUR ORIGINAL UUIDs
     const RX_UUID = "569a2000-b87f-490c-92cb-11ba5ea5167c"; // notify
     const TX_UUID = "569a2001-b87f-490c-92cb-11ba5ea5167c"; // write
 
@@ -271,7 +269,6 @@
       return out;
     }
 
-    // NEW EXTRACT FRAMES LOGIC (Chunking fix intact)
     function extractFrames() {
       const frames = [];
       while (true) {
@@ -343,16 +340,15 @@
       });
     }
 
-    // WRITE ASCII (Appended line terminator \n intact)
+    // UPDATED: Strict writing format. No \n allowed. Forces Write Request.
     async function writeAscii(text) {
       if (!txChar) throw new Error("TX characteristic not ready");
-      const bytes = enc.encode(text + "\n");
+      const bytes = enc.encode(text); // Strict frame format
 
-      try {
-        await txChar.writeValueWithoutResponse(bytes);
-      } catch {
-        await txChar.writeValue(bytes);
-      }
+      // We strictly use writeValue() (Write Request) instead of Without Response.
+      // This forces the machine's hardware to acknowledge the command packet.
+      await txChar.writeValue(bytes);
+      
       log(`TX: ${text}`);
     }
 
@@ -432,6 +428,11 @@
           await rxChar.startNotifications();
           rxChar.addEventListener("characteristicvaluechanged", onNotify);
           log("[INFO] RX notifications enabled.", "ok");
+          
+          // CRITICAL FIX: The machine needs time to register the CCCD state change
+          // before it will accept the first Write Request.
+          await new Promise(resolve => setTimeout(resolve, 600));
+
         } catch (e) {
           rxChar = null;
           log("[WARN] RX unavailable", "warn");
