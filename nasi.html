@@ -72,8 +72,8 @@
 
       <div class="small mono" style="margin-top:10px;">
         Service UUID: 569a1101-b87f-490c-92cb-11ba5ea5167c<br>
-        RX UUID: 569a2001-b87f-490c-92cb-11ba5ea5167c<br>
-        TX UUID: 569a2000-b87f-490c-92cb-11ba5ea5167c
+        RX UUID: 569a2000-b87f-490c-92cb-11ba5ea5167c<br>
+        TX UUID: 569a2001-b87f-490c-92cb-11ba5ea5167c
       </div>
 
       <div class="map small" id="deviceMap">
@@ -100,63 +100,63 @@
     // 1) COMBINED CONFIG: BOTH OF YOUR PROJECTS IN ONE FILE
     // ============================================================
     const PROJECTS = [
-  {
-    id: "project_dryer8",
-    name: "Dryer 8",
-    machines: [
       {
-        id: "dryer8",
-        name: "Dryer tdb",
-        bluetoothName: "AWZHP7K3JBR1",
-        password: "WQH794367",
-        type: "dryer",
-        cycles: { min15: "15 min cycle", full: "Full dry" }
-      }
-    ]
-  },
-  {
-    id: "project_dryer19",
-    name: "Dryer tbd",
-    machines: [
+        id: "project_dryer8",
+        name: "Dryer 8",
+        machines: [
+          {
+            id: "dryer8",
+            name: "Dryer tdb",
+            bluetoothName: "AWZHP7K3JBR1",
+            password: "WQH794367",
+            type: "dryer",
+            cycles: { min15: "15 min cycle", full: "Full dry" }
+          }
+        ]
+      },
       {
-        id: "dryer27",
-        name: "Dryer 27",
-        bluetoothName: "AW2VUNMUXBR1",
-        password: "",
-        type: "dryer",
-        cycles: { min15: "15 min cycle", full: "Full dry" }
-      }
-    ]
-  },
-  {
-    id: "project_washer28",
-    name: "Washer 28",
-    machines: [
+        id: "project_dryer19",
+        name: "Dryer tbd",
+        machines: [
+          {
+            id: "dryer27",
+            name: "Dryer 27",
+            bluetoothName: "AW2VUNMUXBR1",
+            password: "",
+            type: "dryer",
+            cycles: { min15: "15 min cycle", full: "Full dry" }
+          }
+        ]
+      },
       {
-        id: "washer28",
+        id: "project_washer28",
         name: "Washer 28",
-        bluetoothName: "AWUBY439KDR1",
-        password: "XGF942979",
-        type: "washer",
-        cycles: { full: "Full wash" }
-      }
-    ]
-  },
-  {
-    id: "project_washer20",
-    name: "Washer tbd",
-    machines: [
+        machines: [
+          {
+            id: "washer28",
+            name: "Washer 28",
+            bluetoothName: "AWUBY439KDR1",
+            password: "XGF942979",
+            type: "washer",
+            cycles: { full: "Full wash" }
+          }
+        ]
+      },
       {
-        id: "washer20",
-        name: "Washer 20",
-        bluetoothName: "AW39SC4UN8R1",
-        password: "BWP873598",
-        type: "washer",
-        cycles: { full: "Full wash" }
+        id: "project_washer20",
+        name: "Washer tbd",
+        machines: [
+          {
+            id: "washer20",
+            name: "Washer 20",
+            bluetoothName: "AW39SC4UN8R1",
+            password: "BWP873598",
+            type: "washer",
+            cycles: { full: "Full wash" }
+          }
+        ]
       }
-    ]
-  }
-];
+    ];
 
     let activeProjectId = PROJECTS[0]?.id || "";
     function getActiveMachines() {
@@ -168,9 +168,9 @@
     // ============================================================
     const SERVICE_UUID = "569a1101-b87f-490c-92cb-11ba5ea5167c";
     
-    // UUIDs SWAPPED HERE
-    const RX_UUID = "569a2001-b87f-490c-92cb-11ba5ea5167c"; // notify
-    const TX_UUID = "569a2000-b87f-490c-92cb-11ba5ea5167c"; // write
+    // REVERTED TO YOUR ORIGINAL UUIDs
+    const RX_UUID = "569a2000-b87f-490c-92cb-11ba5ea5167c"; // notify
+    const TX_UUID = "569a2001-b87f-490c-92cb-11ba5ea5167c"; // write
 
     const CMD = {
       HANDSHAKE: "[HANDSHAKE:ENABLE]",
@@ -271,7 +271,7 @@
       return out;
     }
 
-    // UPDATED FRAME EXTRACTION LOGIC
+    // NEW EXTRACT FRAMES LOGIC (Chunking fix intact)
     function extractFrames() {
       const frames = [];
       while (true) {
@@ -343,7 +343,7 @@
       });
     }
 
-    // UPDATED WRITE FUNCTION (Appended line terminator \n)
+    // WRITE ASCII (Appended line terminator \n intact)
     async function writeAscii(text) {
       if (!txChar) throw new Error("TX characteristic not ready");
       const bytes = enc.encode(text + "\n");
